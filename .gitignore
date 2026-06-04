@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+.next/
+out/
+dist/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Data
+data/raw/
+data/processed/
+*.csv
+*.parquet
+*.xlsx
+
+# Keep sample data
+!data/sample/
+!data/sample/**/*.csv
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
