@@ -31,3 +31,14 @@ data/processed/
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# Keep examples
+!.env.example
+!.env.local.example
