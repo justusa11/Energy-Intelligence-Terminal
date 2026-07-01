@@ -13,6 +13,13 @@ def test_health_endpoint():
     assert response.json()["status"] == "ok"
 
 
+def test_init_db_endpoint():
+    response = client.post("/api/v1/health/init-db")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+
+
 def test_market_overview_contract():
     response = client.get("/api/v1/market/overview")
 
@@ -36,6 +43,23 @@ def test_day_ahead_prices_contract():
     assert len(payload["prices"]) == 24
     assert payload["prices"][0]["hour"] == "00:00"
     assert payload["prices"][-1]["hour"] == "23:00"
+
+
+def test_seed_sample_prices_then_read_database_rows():
+    seed_response = client.post("/api/v1/prices/seed-sample")
+
+    assert seed_response.status_code == 200
+    seed_payload = seed_response.json()
+    assert seed_payload["status"] == "ok"
+    assert seed_payload["rows_inserted"] in {0, 24}
+
+    read_response = client.get("/api/v1/prices/day-ahead")
+
+    assert read_response.status_code == 200
+    read_payload = read_response.json()
+    assert len(read_payload["prices"]) == 24
+    assert read_payload["prices"][0]["hour"] == "00:00"
+    assert read_payload["prices"][-1]["hour"] == "23:00"
 
 
 def test_weather_forecast_contract():
