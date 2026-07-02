@@ -1,0 +1,12 @@
+country_code: DK
+country_name: Denmark
+timezone: Europe/Copenhagen
+currency: EUR
+
+markets:
+  power:
+    source: energidataservice
+    datasets: DayAheadPrices
+    zones:
+      - DK1
+      - DK2

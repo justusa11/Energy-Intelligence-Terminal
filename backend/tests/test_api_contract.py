@@ -1,6 +1,10 @@
+from datetime import datetime, timedelta, timezone
+
 from fastapi.testclient import TestClient
 
+from app.db.session import SessionLocal
 from app.main import app
+from app.repositories.price_repository import create_market_price
 
 
 client = TestClient(app)
@@ -33,27 +37,36 @@ def test_market_overview_contract():
     assert payload["risk_status"] in {"SAFE", "WARN", "CRITICAL"}
 
 
-def test_day_ahead_prices_contract():
+def test_day_ahead_prices_returns_empty_prices_when_database_has_no_rows():
     response = client.get("/api/v1/prices/day-ahead")
 
     assert response.status_code == 200
     payload = response.json()
     assert payload["market"] == "day_ahead"
     assert payload["unit"] == "EUR/MWh"
-    assert len(payload["prices"]) == 24
-    assert payload["prices"][0]["hour"] == "00:00"
-    assert payload["prices"][-1]["hour"] == "23:00"
+    assert payload["prices"] == []
 
 
-def test_seed_sample_prices_then_read_database_rows():
-    seed_response = client.post("/api/v1/prices/seed-sample")
+def test_day_ahead_prices_returns_database_rows():
+    db = SessionLocal()
+    try:
+        base_time = datetime(2026, 6, 4, 0, 0, tzinfo=timezone.utc)
+        for hour in range(24):
+            create_market_price(
+                db,
+                country_code="TEST",
+                market="day_ahead",
+                zone="T1",
+                source="test",
+                timestamp_utc=base_time + timedelta(hours=hour),
+                price=float(hour),
+                currency="EUR",
+                unit="MWh",
+            )
+    finally:
+        db.close()
 
-    assert seed_response.status_code == 200
-    seed_payload = seed_response.json()
-    assert seed_payload["status"] == "ok"
-    assert seed_payload["rows_inserted"] in {0, 24}
-
-    read_response = client.get("/api/v1/prices/day-ahead")
+    read_response = client.get("/api/v1/prices/day-ahead?country=TEST&zone=T1")
 
     assert read_response.status_code == 200
     read_payload = read_response.json()

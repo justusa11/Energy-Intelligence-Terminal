@@ -1,0 +1,6 @@
+base_url: "https://api.energidataservice.dk"
+dataset: "DayAheadPrices"
+default_limit: 5000
+price_areas:
+  - DK1
+  - DK2

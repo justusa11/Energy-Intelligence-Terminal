@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 
 from app.models.market_price import MarketPrice
 
+from sqlalchemy.exc import IntegrityError
+
 
 def create_market_price(
     db: Session,
@@ -54,3 +56,39 @@ def get_market_prices(
         .limit(limit)
         .all()
     )
+
+def create_market_price_if_not_exists(
+    db: Session,
+    *,
+    country_code: str,
+    market: str,
+    zone: str,
+    source: str,
+    timestamp_utc: datetime,
+    price: float,
+    currency: str = "EUR",
+    unit: str = "MWh",
+    local_timestamp: datetime | None = None,
+) -> tuple[MarketPrice | None, bool]:
+    """
+    Returns:
+    - record or None
+    - inserted flag
+    """
+    try:
+        record = create_market_price(
+            db,
+            country_code=country_code,
+            market=market,
+            zone=zone,
+            source=source,
+            timestamp_utc=timestamp_utc,
+            local_timestamp=local_timestamp,
+            price=price,
+            currency=currency,
+            unit=unit,
+        )
+        return record, True
+    except IntegrityError:
+        db.rollback()
+        return None, False
