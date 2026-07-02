@@ -10,3 +10,14 @@ markets:
     zones:
       - DK1
       - DK2
+
+weather_zones:
+  DK1:
+    latitude: 56.2639
+    longitude: 9.5018
+    description: "Western Denmark / Jutland approximation"
+
+  DK2:
+    latitude: 55.6761
+    longitude: 12.5683
+    description: "Eastern Denmark / Copenhagen approximation"
