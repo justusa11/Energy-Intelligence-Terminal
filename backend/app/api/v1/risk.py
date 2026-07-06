@@ -11,8 +11,12 @@ router = APIRouter()
 
 
 @router.get("/status", response_model=RiskStatusResponse)
-def risk_status():
-    return get_risk_status()
+def risk_status(
+    country: str = Query(default="DK"),
+    zone: str = Query(default="DK1"),
+    db: Session = Depends(get_db),
+):
+    return get_risk_status(db, country=country, zone=zone)
 
 
 @router.get("/data-quality", response_model=DataQualityResponse)

@@ -1,19 +1,16 @@
-export default function Page() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Gas & Carbon</h1>
-        <p className="mt-2 text-sm text-slate-400">
-          Track TTF gas, EUA carbon, spark spreads, and carbon-adjusted power costs.
-        </p>
-      </div>
+import { RoadmapModule } from "@/components/RoadmapModule";
 
-      <section className="rounded-xl border border-slate-800 bg-slate-900 p-6">
-        <h2 className="text-lg font-semibold">Module Status</h2>
-        <p className="mt-2 text-sm text-slate-400">
-          This module route is working. Detailed functionality will be added in later weeks.
-        </p>
-      </section>
-    </div>
+export default function GasCarbonPage() {
+  return (
+    <RoadmapModule
+      title="Gas & Carbon"
+      description="Track TTF gas, EUA carbon, spark spreads, and carbon-adjusted power costs."
+      planned={[
+        "TTF gas and EUA carbon price ingestion",
+        "Spark spread and clean spark spread calculation",
+        "Carbon-adjusted marginal cost of power",
+        "Fuel-switching signals for gas vs. coal generation",
+      ]}
+    />
   );
 }

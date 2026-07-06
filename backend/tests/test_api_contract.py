@@ -97,6 +97,93 @@ def test_risk_status_contract():
     assert all(check["status"] in {"OK", "WARN", "FAIL"} for check in payload["checks"])
 
 
+def test_forecast_contract():
+    response = client.get("/api/v1/forecast/day-ahead?country=DK&zone=DK1")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["country"] == "DK"
+    assert payload["zone"] == "DK1"
+    assert payload["model"] in {"ridge_regression_v1", "seasonal_naive"}
+    assert len(payload["points"]) == 24
+    assert payload["regime"]["name"] in {"normal", "surplus", "scarcity", "volatile", "unknown"}
+    assert 0 <= payload["regime"]["confidence"] <= 1
+    assert payload["metrics"]["mae"] >= 0
+
+
+def test_screener_contract():
+    response = client.get("/api/v1/screener/opportunities?country=DK&zone=DK1")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["spike_risk"] in {"low", "medium", "high"}
+    assert payload["negative_price_risk"] in {"low", "medium", "high"}
+    assert len(payload["cheapest_hours"]) >= 1
+    assert len(payload["most_expensive_hours"]) >= 1
+    assert payload["price_spread_eur_mwh"] >= 0
+
+
+def test_flexibility_contract():
+    response = client.get("/api/v1/flexibility/schedule?country=DK&zone=DK1")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["schedule"]) == 24
+    assert payload["estimated_savings_eur"] >= 0
+    actions = {slot["battery_action"] for slot in payload["schedule"]}
+    assert actions <= {"charge", "discharge", "idle"}
+    assert "charge" in actions
+
+
+def test_simulator_contract():
+    response = client.get(
+        "/api/v1/simulator/backtest?country=DK&zone=DK1&strategy=battery_arbitrage&days=7"
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["strategy"] == "battery_arbitrage"
+    assert payload["days_simulated"] >= 1
+    assert isinstance(payload["total_profit_eur"], float)
+    assert len(payload["daily_results"]) == payload["days_simulated"]
+
+
+def test_advisor_contract():
+    response = client.post(
+        "/api/v1/advisor/ask",
+        json={"question": "When is electricity cheapest today?", "country": "DK", "zone": "DK1"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["answer"]
+    assert "screener" in payload["sources"]
+    assert len(payload["suggested_questions"]) >= 3
+
+
+def test_reports_contract():
+    daily = client.get("/api/v1/reports/daily?country=DK&zone=DK1")
+    weekly = client.get("/api/v1/reports/weekly-savings?country=DK&zone=DK1")
+
+    assert daily.status_code == 200
+    assert weekly.status_code == 200
+    assert daily.json()["report_type"] == "daily"
+    assert weekly.json()["report_type"] == "weekly_savings"
+    assert daily.json()["markdown"].startswith("# ")
+    assert len(daily.json()["sections"]) >= 4
+
+
+def test_countries_contract():
+    response = client.get("/api/v1/market/countries")
+
+    assert response.status_code == 200
+    payload = response.json()
+    codes = {c["code"] for c in payload["countries"]}
+    assert {"DK", "DE", "US", "JP"} <= codes
+    dk = next(c for c in payload["countries"] if c["code"] == "DK")
+    assert {z["code"] for z in dk["zones"]} == {"DK1", "DK2"}
+
+
 def test_data_quality_contract():
     response = client.get("/api/v1/risk/data-quality?country=DK&zone=DK1")
 

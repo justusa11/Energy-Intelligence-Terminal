@@ -99,10 +99,13 @@ export const countries = [
   { label: "United States", value: "US" },
 ];
 
+// Zone codes must match the backend registry (backend/app/core/countries.py).
 export const zones = [
-  { label: "DK1", value: "DK1" },
-  { label: "DK2", value: "DK2" },
-  { label: "Germany", value: "DE-LU" },
-  { label: "Tokyo", value: "JP-TOKYO" },
-  { label: "ERCOT Houston", value: "US-ERCOT-HOUSTON" },
+  { label: "DK1 — West Denmark", value: "DK1", country: "DK", live: true },
+  { label: "DK2 — East Denmark", value: "DK2", country: "DK", live: true },
+  { label: "DE-LU — Germany", value: "DE-LU", country: "DE", live: false },
+  { label: "ERCOT — Texas", value: "ERCOT", country: "US", live: false },
+  { label: "JP-TK — Tokyo", value: "JP-TK", country: "JP", live: false },
 ];
+
+export type ZoneOption = (typeof zones)[number];

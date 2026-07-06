@@ -1,19 +1,16 @@
-export default function Page() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Derivatives Analytics</h1>
-        <p className="mt-2 text-sm text-slate-400">
-          Analyze forward curves, spark spreads, clean spark spreads, volatility, and market positioning.
-        </p>
-      </div>
+import { RoadmapModule } from "@/components/RoadmapModule";
 
-      <section className="rounded-xl border border-slate-800 bg-slate-900 p-6">
-        <h2 className="text-lg font-semibold">Module Status</h2>
-        <p className="mt-2 text-sm text-slate-400">
-          This module route is working. Detailed functionality will be added in later weeks.
-        </p>
-      </section>
-    </div>
+export default function DerivativesPage() {
+  return (
+    <RoadmapModule
+      title="Derivatives Analytics"
+      description="Forward curves, spark spreads, volatility, and market positioning."
+      planned={[
+        "Forward and futures curve visualization",
+        "Historical and implied volatility surfaces",
+        "Clean spark and dark spread analytics",
+        "Position and hedge ratio tracking",
+      ]}
+    />
   );
 }
