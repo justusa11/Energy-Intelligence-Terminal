@@ -82,9 +82,8 @@ def test_weather_forecast_contract():
     payload = response.json()
     assert payload["country"] == "DK"
     assert payload["zone"] == "DK1"
-    assert isinstance(payload["temperature_c"], float)
-    assert isinstance(payload["wind_speed_ms"], float)
-    assert isinstance(payload["solar_radiation_wm2"], float)
+    assert payload["source"] == "open_meteo"
+    assert isinstance(payload["forecasts"], list)
 
 
 def test_risk_status_contract():
@@ -96,3 +95,17 @@ def test_risk_status_contract():
     assert len(payload["checks"]) >= 1
     assert all("name" in check for check in payload["checks"])
     assert all(check["status"] in {"OK", "WARN", "FAIL"} for check in payload["checks"])
+
+
+def test_data_quality_contract():
+    response = client.get("/api/v1/risk/data-quality?country=DK&zone=DK1")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["country"] == "DK"
+    assert payload["zone"] == "DK1"
+    assert payload["status"] in {"OK", "WARNING", "FAILED"}
+    assert len(payload["checks"]) >= 1
+    assert all("name" in check for check in payload["checks"])
+    assert all(check["status"] in {"OK", "WARNING", "FAILED"} for check in payload["checks"])
+    assert all(check["severity"] in {"low", "medium", "high"} for check in payload["checks"])

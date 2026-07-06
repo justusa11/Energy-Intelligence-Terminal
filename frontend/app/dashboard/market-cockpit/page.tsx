@@ -1,5 +1,7 @@
 "use client";
 
+import { useDataQuality } from "@/hooks/useDataQuality";
+import { DataQualityStatusCard } from "@/components/cards/DataQualityStatusCard";
 import { useMarketOverview } from "@/hooks/useMarketOverview";
 import { usePowerPrices } from "@/hooks/usePowerPrices";
 import { useRiskStatus } from "@/hooks/useRiskStatus";
@@ -21,6 +23,7 @@ export default function MarketCockpitPage() {
       : null;
   const chartScale = getChartScale(priceSeries);
   const chartTicks = getChartTicks(priceSeries);
+  const dataQuality = useDataQuality("DK", "DK1");
 
   return (
     <div className="space-y-6">
@@ -162,14 +165,21 @@ export default function MarketCockpitPage() {
           <h2 className="text-lg font-semibold">Risk Monitor</h2>
           <div className="mt-4 space-y-3 text-sm">
             {risk.data ? (
-              risk.data.checks.map((check) => (
-                <RiskCheck
-                  key={check.name}
-                  text={check.name}
-                  status={check.status}
-                  severity={check.severity}
+              <>
+                {risk.data.checks.map((check) => (
+                  <RiskCheck
+                    key={check.name}
+                    text={check.name}
+                    status={check.status}
+                    severity={check.severity}
+                  />
+                ))}
+                <DataQualityStatusCard
+                  data={dataQuality.data}
+                  isLoading={dataQuality.isLoading}
+                  error={dataQuality.error}
                 />
-              ))
+              </>
             ) : (
               <p className="rounded-lg border border-slate-800 bg-slate-950 p-3 text-slate-500">
                 {risk.error ?? "Loading risk checks..."}
