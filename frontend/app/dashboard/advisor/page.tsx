@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useMarketScope } from "@/hooks/useMarketScope";
 import { apiGet, apiPost } from "@/lib/api";
 import { ZoneSelect } from "@/components/ZoneSelect";
 import type { AdvisorAnswer } from "@/types/terminal";
@@ -8,8 +9,7 @@ import type { AdvisorAnswer } from "@/types/terminal";
 type Message = { role: "user" | "advisor"; text: string; sources?: string[] };
 
 export default function AdvisorPage() {
-  const [zone, setZone] = useState("DK1");
-  const [country, setCountry] = useState("DK");
+  const { country, setZone, zone } = useMarketScope();
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [suggested, setSuggested] = useState<string[]>([]);
@@ -64,10 +64,7 @@ export default function AdvisorPage() {
         </div>
         <ZoneSelect
           zone={zone}
-          onChange={(z, c) => {
-            setZone(z);
-            setCountry(c);
-          }}
+          onChange={(z, c) => setZone(z, c)}
         />
       </div>
 

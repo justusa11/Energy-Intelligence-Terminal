@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import { useApi } from "@/hooks/useApi";
+import { useMarketScope } from "@/hooks/useMarketScope";
 import { ZoneSelect } from "@/components/ZoneSelect";
 import type { FlexibilityPlan } from "@/types/terminal";
 
 export default function FlexibilityPage() {
-  const [zone, setZone] = useState("DK1");
-  const [country, setCountry] = useState("DK");
+  const { country, setZone, zone } = useMarketScope();
 
   const plan = useApi<FlexibilityPlan>(
     `/flexibility/schedule?country=${country}&zone=${zone}`
@@ -28,10 +27,7 @@ export default function FlexibilityPage() {
         </div>
         <ZoneSelect
           zone={zone}
-          onChange={(z, c) => {
-            setZone(z);
-            setCountry(c);
-          }}
+          onChange={(z, c) => setZone(z, c)}
         />
       </div>
 
@@ -81,8 +77,8 @@ export default function FlexibilityPage() {
               </tr>
             </thead>
             <tbody>
-              {(data?.schedule ?? []).map((slot) => (
-                <tr key={slot.hour} className="border-t border-slate-800">
+              {(data?.schedule ?? []).map((slot, index) => (
+                <tr key={`${slot.hour}-${index}`} className="border-t border-slate-800">
                   <td className="py-2 text-slate-300">{slot.hour}</td>
                   <td className="py-2 text-right text-slate-200">
                     {slot.price_eur_mwh.toFixed(1)}

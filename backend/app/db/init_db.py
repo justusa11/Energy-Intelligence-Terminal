@@ -5,6 +5,8 @@ from app.db.session import engine
 from app.models.market_price import MarketPrice # noqa: F401
 from app.models.ingestion_log import IngestionLog # noqa: F401
 from app.models.weather import WeatherForecast # noqa: F401
+from app.models.energy_market_mark import EnergyMarketMark # noqa: F401
+from app.models.infrastructure_asset import InfrastructureAsset, InfrastructureLink # noqa: F401
 
 def init_db():
     Base.metadata.create_all(bind=engine)

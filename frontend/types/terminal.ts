@@ -17,6 +17,9 @@ export type Forecast = {
   zone: string;
   model: string;
   data_source: string;
+  confidence: number;
+  drivers: string[];
+  feature_summary: Record<string, string | number>;
   generated_at_utc: string;
   metrics: { mae: number; rmse: number; sample_hours: number };
   regime: MarketRegime;

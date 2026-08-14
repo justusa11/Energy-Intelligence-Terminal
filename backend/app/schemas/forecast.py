@@ -25,6 +25,9 @@ class ForecastResponse(BaseModel):
     zone: str
     model: str
     data_source: str
+    confidence: float
+    drivers: list[str]
+    feature_summary: dict[str, str | int | float]
     generated_at_utc: datetime
     metrics: ForecastMetrics
     regime: MarketRegime

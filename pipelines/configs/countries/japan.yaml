@@ -1,0 +1,15 @@
+country_code: JP
+country_name: Japan
+timezone: Asia/Tokyo
+currency: JPY
+
+markets:
+  power:
+    source: jepx
+    credential_env: JEPX_BASE_URL
+    zones:
+      JP-TK:
+        name: Tokyo JEPX
+        market: day_ahead
+        area_column: Tokyo
+        repair_command: python pipelines/jobs/ingest_external_market_prices.py --country JP --zone JP-TK

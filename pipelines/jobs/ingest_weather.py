@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -10,6 +11,7 @@ sys.path.append(str(BACKEND_ROOT))
 sys.path.append(str(PROJECT_ROOT))
 
 from app.db.session import SessionLocal
+from app.models.ingestion_log import IngestionLog
 from app.repositories.weather_repository import create_weather_forecast_if_not_exists
 from pipelines.normalizers.weather_normalizer import normalize_open_meteo_hourly_forecast
 from pipelines.sources.open_meteo_client import OpenMeteoClient
@@ -28,29 +30,36 @@ DENMARK_WEATHER_ZONES = {
 
 
 def ingest_denmark_weather_forecasts() -> dict[str, int]:
+    started_at = datetime.now(timezone.utc)
     client = OpenMeteoClient()
     db = SessionLocal()
 
     rows_fetched = 0
     rows_inserted = 0
     rows_skipped = 0
+    rows_failed = 0
 
     try:
         for zone, coordinates in DENMARK_WEATHER_ZONES.items():
-            payload = client.fetch_hourly_forecast(
-                latitude=coordinates["latitude"],
-                longitude=coordinates["longitude"],
-                timezone="UTC",
-                forecast_days=7,
-            )
+            try:
+                payload = client.fetch_hourly_forecast(
+                    latitude=coordinates["latitude"],
+                    longitude=coordinates["longitude"],
+                    timezone="UTC",
+                    forecast_days=7,
+                )
 
-            records = normalize_open_meteo_hourly_forecast(
-                payload,
-                country_code="DK",
-                zone=zone,
-                latitude=coordinates["latitude"],
-                longitude=coordinates["longitude"],
-            )
+                records = normalize_open_meteo_hourly_forecast(
+                    payload,
+                    country_code="DK",
+                    zone=zone,
+                    latitude=coordinates["latitude"],
+                    longitude=coordinates["longitude"],
+                )
+            except Exception as exc:
+                rows_failed += 1
+                print(f"Failed to fetch weather for {zone}: {exc}")
+                continue
 
             rows_fetched += len(records)
 
@@ -76,14 +85,58 @@ def ingest_denmark_weather_forecasts() -> dict[str, int]:
                 else:
                     rows_skipped += 1
 
+        status = "success" if rows_failed == 0 and rows_fetched > 0 else "warning"
+        message = (
+            f"Fetched {rows_fetched} Denmark weather forecast rows; "
+            f"inserted {rows_inserted}, skipped {rows_skipped}, failed {rows_failed}."
+        )
+        _write_ingestion_log(
+            db,
+            dataset="weather_forecasts",
+            source="open_meteo",
+            status=status,
+            rows_fetched=rows_fetched,
+            rows_inserted=rows_inserted,
+            message=message,
+            started_at=started_at,
+        )
+
         return {
+            "status": status,
             "rows_fetched": rows_fetched,
             "rows_inserted": rows_inserted,
             "rows_skipped": rows_skipped,
+            "rows_failed": rows_failed,
         }
 
     finally:
         db.close()
+
+
+def _write_ingestion_log(
+    db,
+    *,
+    dataset: str,
+    source: str,
+    status: str,
+    rows_fetched: int,
+    rows_inserted: int,
+    message: str,
+    started_at: datetime,
+) -> None:
+    db.add(
+        IngestionLog(
+            source=source,
+            dataset=dataset,
+            status=status,
+            rows_fetched=rows_fetched,
+            rows_inserted=rows_inserted,
+            message=message,
+            started_at=started_at,
+            finished_at=datetime.now(timezone.utc),
+        )
+    )
+    db.commit()
 
 
 if __name__ == "__main__":

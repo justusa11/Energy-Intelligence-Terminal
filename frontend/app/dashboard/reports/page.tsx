@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { useApi } from "@/hooks/useApi";
+import { useMarketScope } from "@/hooks/useMarketScope";
 import { ZoneSelect } from "@/components/ZoneSelect";
 import type { Report } from "@/types/terminal";
 
 export default function ReportsPage() {
-  const [zone, setZone] = useState("DK1");
-  const [country, setCountry] = useState("DK");
+  const { country, setZone, zone } = useMarketScope();
   const [type, setType] = useState<"daily" | "weekly-savings">("daily");
 
   const path =
@@ -48,10 +48,7 @@ export default function ReportsPage() {
           </select>
           <ZoneSelect
             zone={zone}
-            onChange={(z, c) => {
-              setZone(z);
-              setCountry(c);
-            }}
+            onChange={(z, c) => setZone(z, c)}
           />
         </div>
       </div>
@@ -78,8 +75,8 @@ export default function ReportsPage() {
         </div>
 
         <div className="mt-6 space-y-5">
-          {(data?.sections ?? []).map((section) => (
-            <div key={section.title}>
+          {(data?.sections ?? []).map((section, index) => (
+            <div key={`${section.title}-${index}`}>
               <h3 className="text-sm font-semibold uppercase tracking-wide text-blue-400">
                 {section.title}
               </h3>

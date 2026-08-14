@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import { useApi } from "@/hooks/useApi";
+import { useMarketScope } from "@/hooks/useMarketScope";
 import { ZoneSelect } from "@/components/ZoneSelect";
 import type { Screener } from "@/types/terminal";
 
 export default function ScreenerPage() {
-  const [zone, setZone] = useState("DK1");
-  const [country, setCountry] = useState("DK");
+  const { country, setZone, zone } = useMarketScope();
 
   const screener = useApi<Screener>(
     `/screener/opportunities?country=${country}&zone=${zone}`
@@ -28,10 +27,7 @@ export default function ScreenerPage() {
         </div>
         <ZoneSelect
           zone={zone}
-          onChange={(z, c) => {
-            setZone(z);
-            setCountry(c);
-          }}
+          onChange={(z, c) => setZone(z, c)}
         />
       </div>
 
@@ -131,9 +127,9 @@ function HourList({
     <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
       <h2 className="text-lg font-semibold">{title}</h2>
       <div className="mt-4 space-y-2">
-        {hours.map((h) => (
+        {hours.map((h, index) => (
           <div
-            key={h.hour}
+            key={`${h.hour}-${index}`}
             className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950 p-3 text-sm"
           >
             <span className="text-slate-300">{h.hour} UTC</span>

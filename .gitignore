@@ -12,9 +12,14 @@ node_modules/
 .next/
 out/
 dist/
+frontend-temp/
+*.tsbuildinfo
 npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
+playwright-report/
+test-results/
+debug.log
 
 # Data
 data/raw/
@@ -22,6 +27,7 @@ data/processed/
 *.csv
 *.parquet
 *.xlsx
+backend/test_contract.db
 
 # Keep sample data
 !data/sample/

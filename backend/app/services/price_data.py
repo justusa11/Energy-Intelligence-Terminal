@@ -10,6 +10,7 @@ import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.core.countries import get_zone
@@ -42,25 +43,47 @@ def load_price_series(
     hours: int = 24,
     allow_sample_fallback: bool = True,
 ) -> PriceSeries:
-    records = get_market_prices(
-        db,
-        country_code=country,
-        zone=zone,
-        market="day_ahead",
-        limit=hours,
-    )
+    try:
+        records = get_market_prices(
+            db,
+            country_code=country,
+            zone=zone,
+            market="day_ahead",
+            limit=hours * 4,
+        )
+    except SQLAlchemyError:
+        db.rollback()
+        records = []
 
     if records:
-        points = [
+        raw_points = [
             PricePoint(timestamp_utc=r.timestamp_utc, price=r.price)
             for r in reversed(records)
         ]
+        points = _aggregate_to_hourly(raw_points)[-hours:]
         return PriceSeries(country=country, zone=zone, source="database", points=points)
 
     if not allow_sample_fallback:
         return PriceSeries(country=country, zone=zone, source="database", points=[])
 
     return generate_sample_series(country=country, zone=zone, hours=hours)
+
+
+def _aggregate_to_hourly(points: list[PricePoint]) -> list[PricePoint]:
+    buckets: dict[datetime, list[float]] = {}
+
+    for point in points:
+        timestamp = point.timestamp_utc
+        bucket = timestamp.replace(minute=0, second=0, microsecond=0)
+        buckets.setdefault(bucket, []).append(point.price)
+
+    return [
+        PricePoint(
+            timestamp_utc=bucket,
+            price=round(sum(prices) / len(prices), 2),
+        )
+        for bucket, prices in sorted(buckets.items())
+    ]
 
 
 def generate_sample_series(

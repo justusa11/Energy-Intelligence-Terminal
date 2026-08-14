@@ -62,12 +62,21 @@ def get_price_forecast(
     ]
 
     regime = classify_regime(prices[-48:] if len(prices) >= 48 else prices)
+    confidence, drivers, feature_summary = _forecast_confidence(
+        model_name=model_name,
+        series=series,
+        metrics=metrics,
+        history_hours=len(prices),
+    )
 
     return ForecastResponse(
         country=country,
         zone=zone,
         model=model_name,
         data_source=series.source,
+        confidence=confidence,
+        drivers=drivers,
+        feature_summary=feature_summary,
         generated_at_utc=datetime.now(timezone.utc),
         metrics=metrics,
         regime=regime,
@@ -232,3 +241,54 @@ def _score(predicted: list[float], actual: list[float]) -> ForecastMetrics:
     mae = sum(abs(e) for e in errors) / n
     rmse = math.sqrt(sum(e * e for e in errors) / n)
     return ForecastMetrics(mae=round(mae, 2), rmse=round(rmse, 2), sample_hours=n)
+
+
+def _forecast_confidence(
+    *,
+    model_name: str,
+    series: PriceSeries,
+    metrics: ForecastMetrics,
+    history_hours: int,
+) -> tuple[float, list[str], dict[str, str | int | float]]:
+    score = 0.5
+    drivers: list[str] = []
+
+    if series.source == "database":
+        score += 0.2
+        drivers.append("Stored market prices are available for this zone.")
+    else:
+        score -= 0.12
+        drivers.append("Forecast is using deterministic sample price curves.")
+
+    if history_hours >= HISTORY_HOURS:
+        score += 0.12
+        drivers.append("Two weeks of hourly history are available.")
+    elif history_hours >= MIN_TRAINING_HOURS:
+        score += 0.06
+        drivers.append("Enough history exists for the regression baseline.")
+    else:
+        score -= 0.1
+        drivers.append("History is short, so the model falls back to seasonal behavior.")
+
+    if metrics.sample_hours >= 24 and metrics.mae <= 20:
+        score += 0.08
+        drivers.append(f"Recent backtest error is controlled at {metrics.mae:.1f} EUR/MWh MAE.")
+    elif metrics.sample_hours > 0:
+        drivers.append(f"Recent backtest error is {metrics.mae:.1f} EUR/MWh MAE.")
+    else:
+        score -= 0.08
+        drivers.append("No holdout backtest sample is available yet.")
+
+    if model_name == "ridge_regression_v1":
+        score += 0.04
+        drivers.append("Model uses hour-of-day and lagged price features.")
+
+    feature_summary: dict[str, str | int | float] = {
+        "price_source": series.source,
+        "history_hours": history_hours,
+        "model": model_name,
+        "calendar_features": "hour_of_day",
+        "lag_features": "24h,168h,rolling_24h",
+        "backtest_mae": metrics.mae,
+    }
+    return round(min(0.95, max(0.2, score)), 2), drivers, feature_summary

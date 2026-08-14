@@ -7,7 +7,6 @@ import {
   FileText,
   Flame,
   Gauge,
-  Globe2,
   LayoutDashboard,
   LineChart,
   Map,

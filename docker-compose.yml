@@ -1,6 +1,6 @@
 # Local development stack: Postgres + FastAPI backend + Next.js frontend.
 # Usage:  docker compose up --build
-# The backend waits for Postgres, creates tables on startup, and (first run)
+# The backend waits for Postgres, applies migrations on startup, and (first run)
 # you can seed sample data with:
 #   docker compose exec backend python -m scripts.seed_sample_data --days 14
 
@@ -26,11 +26,12 @@ services:
       context: ./backend
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/energy_terminal
-      BACKEND_CORS_ORIGINS: http://localhost:3000
+      BACKEND_CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      APP_AUTH_TOKEN: ${APP_AUTH_TOKEN:-}
       ENERGI_DATA_SERVICE_BASE_URL: https://api.energidataservice.dk
       OPEN_METEO_BASE_URL: https://api.open-meteo.com
     command: >
-      sh -c "python -c 'from app.db.init_db import init_db; init_db()' &&
+      sh -c "python -m scripts.bootstrap_schema &&
              uvicorn app.main:app --host 0.0.0.0 --port 8000"
     ports:
       - "8000:8000"
@@ -42,7 +43,9 @@ services:
     build:
       context: ./frontend
     environment:
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
+      NEXT_PUBLIC_API_BASE_URL: /api/v1
+      BACKEND_API_ORIGIN: http://backend:8000
+      BACKEND_API_TOKEN: ${APP_AUTH_TOKEN:-}
     command: sh -c "npm run build && npm run start"
     ports:
       - "3000:3000"

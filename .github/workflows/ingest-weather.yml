@@ -1,0 +1,25 @@
+name: Ingest Weather Forecasts
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "45 */6 * * *"
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      OPEN_METEO_BASE_URL: https://api.open-meteo.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - run: python -m pip install --upgrade pip
+      - run: pip install -r backend/requirements.txt
+      - name: Require database secret
+        run: test -n "$DATABASE_URL"
+      - run: python pipelines/jobs/ingest_weather.py

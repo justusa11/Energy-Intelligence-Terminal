@@ -14,22 +14,22 @@ export function useApi<T>(path: string | null) {
       return;
     }
 
-    let cancelled = false;
+    const controller = new AbortController();
 
     async function load() {
       try {
         setIsLoading(true);
         setError(null);
-        const result = await apiGet<T>(path as string);
-        if (!cancelled) {
-          setData(result);
-        }
+        const result = await apiGet<T>(path as string, {
+          signal: controller.signal,
+        });
+        setData(result);
       } catch (err) {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setError(err instanceof Error ? err.message : "Unknown error");
         }
       } finally {
-        if (!cancelled) {
+        if (!controller.signal.aborted) {
           setIsLoading(false);
         }
       }
@@ -38,7 +38,7 @@ export function useApi<T>(path: string | null) {
     load();
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [path]);
 

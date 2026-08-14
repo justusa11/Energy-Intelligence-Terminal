@@ -1,5 +1,6 @@
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -8,7 +9,7 @@ import pytest
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND_ROOT))
 
-TEST_DB = BACKEND_ROOT / "test_contract.db"
+TEST_DB = Path(tempfile.gettempdir()) / "energy_intelligence_terminal_test_contract.db"
 if TEST_DB.exists():
     TEST_DB.unlink()
 

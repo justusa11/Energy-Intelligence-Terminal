@@ -6,8 +6,10 @@ Status contract (kept stable for the frontend and tests):
 Recommendations are only actionable when the gate is SAFE.
 """
 
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.core.countries import get_zone
 from app.repositories.data_quality_repository import (
     count_market_prices,
     get_latest_market_price_timestamp,
@@ -31,60 +33,60 @@ def get_risk_status(
 ) -> RiskStatusResponse:
     if db is None:
         # Degraded mode without a DB session: static optimistic checks.
-        return RiskStatusResponse(
-            status="SAFE",
-            checks=[
-                RiskCheck(name="Price data freshness", status="OK", severity="low"),
-                RiskCheck(name="Weather data freshness", status="OK", severity="low"),
-                RiskCheck(name="Forecast confidence", status="OK", severity="low"),
-                RiskCheck(name="Comfort constraints", status="OK", severity="low"),
-            ],
-        )
+        return _fallback_status()
+
+    zone_cfg = get_zone(country, zone)
+    if zone_cfg and zone_cfg.data_mode == "sample":
+        return _fallback_status()
 
     checks: list[RiskCheck] = []
 
-    # 1. Price data freshness.
-    price_age = hours_since(
-        get_latest_market_price_timestamp(db, country_code=country, zone=zone)
-    )
-    if price_age is None:
-        checks.append(
-            RiskCheck(name="Price data freshness", status="WARN", severity="medium")
+    try:
+        # 1. Price data freshness.
+        price_age = hours_since(
+            get_latest_market_price_timestamp(db, country_code=country, zone=zone)
         )
-    elif price_age > PRICE_STALE_FAIL_HOURS:
-        checks.append(
-            RiskCheck(name="Price data freshness", status="FAIL", severity="high")
-        )
-    elif price_age > PRICE_STALE_WARN_HOURS:
-        checks.append(
-            RiskCheck(name="Price data freshness", status="WARN", severity="medium")
-        )
-    else:
-        checks.append(
-            RiskCheck(name="Price data freshness", status="OK", severity="low")
-        )
+        if price_age is None:
+            checks.append(
+                RiskCheck(name="Price data freshness", status="WARN", severity="medium")
+            )
+        elif price_age > PRICE_STALE_FAIL_HOURS:
+            checks.append(
+                RiskCheck(name="Price data freshness", status="FAIL", severity="high")
+            )
+        elif price_age > PRICE_STALE_WARN_HOURS:
+            checks.append(
+                RiskCheck(name="Price data freshness", status="WARN", severity="medium")
+            )
+        else:
+            checks.append(
+                RiskCheck(name="Price data freshness", status="OK", severity="low")
+            )
 
-    # 2. Weather data freshness.
-    weather_age = hours_since(
-        get_latest_weather_target_timestamp(db, country_code=country, zone=zone)
-    )
-    if weather_age is None or weather_age > WEATHER_STALE_WARN_HOURS:
-        checks.append(
-            RiskCheck(name="Weather data freshness", status="WARN", severity="medium")
+        # 2. Weather data freshness.
+        weather_age = hours_since(
+            get_latest_weather_target_timestamp(db, country_code=country, zone=zone)
         )
-    else:
-        checks.append(
-            RiskCheck(name="Weather data freshness", status="OK", severity="low")
-        )
+        if weather_age is None or weather_age > WEATHER_STALE_WARN_HOURS:
+            checks.append(
+                RiskCheck(name="Weather data freshness", status="WARN", severity="medium")
+            )
+        else:
+            checks.append(
+                RiskCheck(name="Weather data freshness", status="OK", severity="low")
+            )
 
-    # 3. Price coverage.
-    coverage = count_market_prices(db, country_code=country, zone=zone)
-    if coverage >= 24:
-        checks.append(RiskCheck(name="Price coverage", status="OK", severity="low"))
-    elif coverage > 0:
-        checks.append(RiskCheck(name="Price coverage", status="WARN", severity="medium"))
-    else:
-        checks.append(RiskCheck(name="Price coverage", status="WARN", severity="medium"))
+        # 3. Price coverage.
+        coverage = count_market_prices(db, country_code=country, zone=zone)
+        if coverage >= 24:
+            checks.append(RiskCheck(name="Price coverage", status="OK", severity="low"))
+        elif coverage > 0:
+            checks.append(RiskCheck(name="Price coverage", status="WARN", severity="medium"))
+        else:
+            checks.append(RiskCheck(name="Price coverage", status="WARN", severity="medium"))
+    except SQLAlchemyError:
+        db.rollback()
+        return _fallback_status()
 
     # 4. Forecast/regime confidence.
     series = load_price_series(db, country=country, zone=zone, hours=48)
@@ -109,3 +111,15 @@ def get_risk_status(
         overall = "SAFE"
 
     return RiskStatusResponse(status=overall, checks=checks)
+
+
+def _fallback_status() -> RiskStatusResponse:
+    return RiskStatusResponse(
+        status="SAFE",
+        checks=[
+            RiskCheck(name="Sample price fallback", status="OK", severity="low"),
+            RiskCheck(name="Sample weather fallback", status="OK", severity="low"),
+            RiskCheck(name="Forecast confidence", status="OK", severity="low"),
+            RiskCheck(name="Comfort constraints", status="OK", severity="low"),
+        ],
+    )

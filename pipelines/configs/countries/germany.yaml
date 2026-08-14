@@ -1,0 +1,15 @@
+country_code: DE
+country_name: Germany
+timezone: Europe/Berlin
+currency: EUR
+
+markets:
+  power:
+    source: entsoe
+    credential_env: ENTSOE_API_KEY
+    zones:
+      DE-LU:
+        name: Germany-Luxembourg
+        bidding_zone_domain: 10Y1001A1001A82H
+        market: day_ahead
+        repair_command: python pipelines/jobs/ingest_external_market_prices.py --country DE --zone DE-LU

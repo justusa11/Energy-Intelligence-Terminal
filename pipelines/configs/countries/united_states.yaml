@@ -1,0 +1,16 @@
+country_code: US
+country_name: United States
+timezone: America/Chicago
+currency: USD
+
+markets:
+  power:
+    source: ercot
+    credential_env: ERCOT_API_SUBSCRIPTION_KEY
+    zones:
+      ERCOT:
+        name: Texas ERCOT
+        market: day_ahead
+        settlement_point: HB_HOUSTON
+        endpoint_env: ERCOT_DAM_SPP_ENDPOINT
+        repair_command: python pipelines/jobs/ingest_external_market_prices.py --country US --zone ERCOT

@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import { useApi } from "@/hooks/useApi";
+import { useMarketScope } from "@/hooks/useMarketScope";
+import { DataTruthBadge } from "@/components/DataTruthBadge";
 import { ZoneSelect } from "@/components/ZoneSelect";
+import { getRequestTruth } from "@/lib/dataTruth";
 import type { WeatherForecast } from "@/types/terminal";
 
 export default function WeatherPage() {
-  const [zone, setZone] = useState("DK1");
-  const [country, setCountry] = useState("DK");
+  const { country, setZone, zone } = useMarketScope();
 
   const weather = useApi<WeatherForecast>(
     `/weather/forecast?country=${country}&zone=${zone}`
@@ -20,6 +21,11 @@ export default function WeatherPage() {
   const winds = points
     .map((p) => p.wind_speed_100m_ms)
     .filter((v): v is number => v !== null);
+  const weatherTruth = getRequestTruth({
+    error: weather.error,
+    isLoading: weather.isLoading,
+    source: weather.data?.source,
+  });
 
   return (
     <div className="space-y-6">
@@ -32,13 +38,13 @@ export default function WeatherPage() {
             Temperature, wind, and solar radiation driving renewable supply and demand.
           </p>
         </div>
-        <ZoneSelect
-          zone={zone}
-          onChange={(z, c) => {
-            setZone(z);
-            setCountry(c);
-          }}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <DataTruthBadge truth={weatherTruth} />
+          <ZoneSelect
+            zone={zone}
+            onChange={(z, c) => setZone(z, c)}
+          />
+        </div>
       </div>
 
       <section className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -51,7 +57,7 @@ export default function WeatherPage() {
           value={winds.length ? `${avg(winds).toFixed(1)} m/s` : "—"}
         />
         <Stat title="Forecast Points" value={`${points.length}`} />
-        <Stat title="Source" value={weather.data?.source ?? "—"} />
+        <Stat title="Data Status" value={weatherTruth.label} />
       </section>
 
       <section className="rounded-xl border border-slate-800 bg-slate-900 p-6">
