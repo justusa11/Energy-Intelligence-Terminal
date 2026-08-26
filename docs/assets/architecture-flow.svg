@@ -1,0 +1,171 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="620" viewBox="0 0 1120 620" role="img" aria-labelledby="title desc">
+  <title id="title">AI Energy Intelligence Terminal architecture flow</title>
+  <desc id="desc">Animated architecture diagram showing the Next.js frontend exchanging HTTP JSON with the FastAPI backend, the backend reading and writing PostgreSQL or SQLite through SQLAlchemy, and ingestion jobs loading external market and weather data.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#080c18"/>
+      <stop offset="52%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#07111f"/>
+    </linearGradient>
+    <linearGradient id="frontend" x1="0" x2="1">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+    <linearGradient id="backend" x1="0" x2="1">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#22d3ee"/>
+    </linearGradient>
+    <linearGradient id="db" x1="0" x2="1">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#22c55e"/>
+    </linearGradient>
+    <linearGradient id="jobs" x1="0" x2="1">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#84cc16"/>
+    </linearGradient>
+    <filter id="soft-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <marker id="arrow-blue" markerHeight="8" markerWidth="8" orient="auto" refX="7" refY="4">
+      <path d="M0,0 L8,4 L0,8 z" fill="#67e8f9"/>
+    </marker>
+    <marker id="arrow-green" markerHeight="8" markerWidth="8" orient="auto" refX="7" refY="4">
+      <path d="M0,0 L8,4 L0,8 z" fill="#86efac"/>
+    </marker>
+    <style>
+      .card { fill: #0f172a; stroke-width: 1.5; }
+      .title { fill: #f8fafc; font: 700 22px ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; }
+      .body { fill: #cbd5e1; font: 500 15px ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; }
+      .label { fill: #93c5fd; font: 700 12px ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; letter-spacing: 1.4px; }
+      .small { fill: #94a3b8; font: 600 12px ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; }
+      .flow { fill: none; stroke-linecap: round; stroke-width: 2.5; opacity: .9; }
+      .pulse { animation: pulse 2.6s ease-in-out infinite; transform-origin: center; }
+      .card-glow { animation: cardGlow 4.5s ease-in-out infinite; }
+      .packet { filter: url(#soft-glow); }
+      .spark { animation: spark 3s ease-in-out infinite; transform-origin: center; }
+      @keyframes pulse {
+        0%, 100% { opacity: .65; transform: scale(1); }
+        50% { opacity: 1; transform: scale(1.08); }
+      }
+      @keyframes cardGlow {
+        0%, 100% { opacity: .78; }
+        50% { opacity: 1; }
+      }
+      @keyframes spark {
+        0%, 100% { opacity: .25; }
+        45%, 60% { opacity: 1; }
+      }
+    </style>
+  </defs>
+
+  <rect width="1120" height="620" rx="18" fill="url(#bg)"/>
+  <g opacity=".22">
+    <path d="M0 92H1120M0 188H1120M0 284H1120M0 380H1120M0 476H1120" stroke="#334155"/>
+    <path d="M130 0V620M280 0V620M430 0V620M580 0V620M730 0V620M880 0V620M1030 0V620" stroke="#334155"/>
+  </g>
+  <circle cx="260" cy="155" r="180" fill="#1d4ed8" opacity=".08"/>
+  <circle cx="850" cy="320" r="220" fill="#14b8a6" opacity=".07"/>
+  <circle cx="555" cy="500" r="210" fill="#f59e0b" opacity=".05"/>
+
+  <text x="44" y="52" class="label">ARCHITECTURE AT A GLANCE</text>
+  <text x="44" y="84" class="small">Live-capable data flow from sources to decisions</text>
+
+  <g class="card-glow">
+    <rect x="56" y="168" width="260" height="148" rx="16" class="card" stroke="url(#frontend)"/>
+    <text x="86" y="210" class="title">Next.js Frontend</text>
+    <text x="86" y="242" class="body">Dashboard shell</text>
+    <text x="86" y="268" class="body">12 operator modules</text>
+    <text x="86" y="294" class="body">Interactive maps + charts</text>
+    <circle cx="276" cy="206" r="16" fill="#2563eb" opacity=".28"/>
+    <circle cx="276" cy="206" r="6" fill="#67e8f9" class="pulse"/>
+  </g>
+
+  <g class="card-glow">
+    <rect x="438" y="132" width="292" height="218" rx="16" class="card" stroke="url(#backend)"/>
+    <text x="472" y="176" class="title">FastAPI Backend</text>
+    <text x="472" y="208" class="body">/api/v1/*</text>
+    <text x="472" y="248" class="body">forecast, screener</text>
+    <text x="472" y="274" class="body">flexibility, risk</text>
+    <text x="472" y="300" class="body">simulator, advisor</text>
+    <text x="472" y="326" class="body">reports, GIS</text>
+    <circle cx="684" cy="174" r="16" fill="#7c3aed" opacity=".28"/>
+    <circle cx="684" cy="174" r="6" fill="#c4b5fd" class="pulse"/>
+  </g>
+
+  <g class="card-glow">
+    <rect x="444" y="428" width="286" height="126" rx="16" class="card" stroke="url(#db)"/>
+    <text x="478" y="470" class="title">PostgreSQL / SQLite</text>
+    <text x="478" y="502" class="body">market_prices</text>
+    <text x="478" y="528" class="body">weather_forecasts</text>
+    <text x="478" y="554" class="body">ingestion_runs</text>
+  </g>
+
+  <g class="card-glow">
+    <rect x="808" y="428" width="250" height="126" rx="16" class="card" stroke="url(#jobs)"/>
+    <text x="842" y="470" class="title">Pipelines / Jobs</text>
+    <text x="842" y="502" class="body">Energi Data Service</text>
+    <text x="842" y="528" class="body">Open-Meteo</text>
+    <text x="842" y="554" class="body">heartbeat + repair logs</text>
+  </g>
+
+  <path id="requestPath" d="M318 216 C356 182 392 174 436 174" class="flow" stroke="#67e8f9" marker-end="url(#arrow-blue)"/>
+  <path id="responsePath" d="M438 286 C390 288 358 282 318 260" class="flow" stroke="#93c5fd" marker-end="url(#arrow-blue)" opacity=".65"/>
+  <path id="dbPath" d="M586 352 C586 376 586 398 586 426" class="flow" stroke="#fbbf24" marker-end="url(#arrow-green)"/>
+  <path id="writePath" d="M806 492 C772 492 758 492 732 492" class="flow" stroke="#86efac" marker-end="url(#arrow-green)"/>
+  <path id="readPath" d="M728 452 C764 394 770 300 732 250" class="flow" stroke="#22d3ee" marker-end="url(#arrow-blue)" opacity=".6"/>
+
+  <text x="350" y="166" class="label">HTTP / JSON</text>
+  <text x="606" y="392" class="label">SQLALCHEMY</text>
+  <text x="758" y="476" class="label">WRITES</text>
+  <text x="760" y="310" class="label">READS</text>
+
+  <circle r="6" fill="#67e8f9" class="packet">
+    <animateMotion dur="2.4s" repeatCount="indefinite" rotate="auto">
+      <mpath href="#requestPath"/>
+    </animateMotion>
+  </circle>
+  <circle r="5" fill="#93c5fd" class="packet">
+    <animateMotion dur="2.9s" begin=".5s" repeatCount="indefinite" rotate="auto">
+      <mpath href="#responsePath"/>
+    </animateMotion>
+  </circle>
+  <circle r="5" fill="#fbbf24" class="packet">
+    <animateMotion dur="2.2s" begin=".25s" repeatCount="indefinite" rotate="auto">
+      <mpath href="#dbPath"/>
+    </animateMotion>
+  </circle>
+  <circle r="5" fill="#86efac" class="packet">
+    <animateMotion dur="2.6s" begin=".2s" repeatCount="indefinite" rotate="auto">
+      <mpath href="#writePath"/>
+    </animateMotion>
+  </circle>
+  <circle r="4" fill="#22d3ee" class="packet">
+    <animateMotion dur="3.1s" begin=".8s" repeatCount="indefinite" rotate="auto">
+      <mpath href="#readPath"/>
+    </animateMotion>
+  </circle>
+
+  <g transform="translate(58 404)">
+    <rect width="260" height="150" rx="16" fill="#020617" stroke="#1e293b"/>
+    <text x="24" y="38" class="label">OPERATOR OUTPUT</text>
+    <text x="24" y="72" class="body">What is happening?</text>
+    <text x="24" y="100" class="body">Why is it happening?</text>
+    <text x="24" y="128" class="body">What should I do?</text>
+    <circle cx="224" cy="68" r="5" fill="#22c55e" class="spark"/>
+    <circle cx="224" cy="96" r="5" fill="#f59e0b" class="spark" style="animation-delay:.7s"/>
+    <circle cx="224" cy="124" r="5" fill="#38bdf8" class="spark" style="animation-delay:1.3s"/>
+  </g>
+
+  <g transform="translate(812 164)">
+    <rect width="246" height="152" rx="16" fill="#020617" stroke="#1e293b"/>
+    <text x="24" y="38" class="label">DATA QUALITY GATE</text>
+    <text x="24" y="72" class="body">freshness checks</text>
+    <text x="24" y="100" class="body">fallback labels</text>
+    <text x="24" y="128" class="body">repair commands</text>
+    <path d="M178 88 l18 18 l32 -44" fill="none" stroke="#22c55e" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" class="pulse"/>
+  </g>
+</svg>

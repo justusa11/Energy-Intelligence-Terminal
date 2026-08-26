@@ -43,32 +43,7 @@ and reports behind a Next.js dashboard served by a FastAPI backend.
 
 ## Architecture at a glance
 
-```
-┌────────────────────┐     HTTP/JSON      ┌──────────────────────┐
-│  Next.js frontend  │  ───────────────►  │   FastAPI backend    │
-│  (dashboard, 12    │  ◄───────────────  │   /api/v1/*          │
-│   module pages)    │                    │                      │
-└────────────────────┘                    │  services/           │
-                                          │   forecast, screener,│
-                                          │   flexibility, risk, │
-                                          │   simulator, advisor,│
-                                          │   reports            │
-                                          └──────────┬───────────┘
-                                                     │ SQLAlchemy
-                                                     ▼
-                                          ┌──────────────────────┐
-                                          │  PostgreSQL / SQLite  │
-                                          │  market_prices,       │
-                                          │  weather_forecasts,   │
-                                          │  ingestion_logs       │
-                                          └──────────▲───────────┘
-                                                     │ writes
-                                          ┌──────────┴───────────┐
-                                          │  pipelines/ jobs      │
-                                          │  Energi Data Service, │
-                                          │  Open-Meteo           │
-                                          └──────────────────────┘
-```
+![Animated architecture flow](docs/assets/architecture-flow.svg)
 
 Full detail: [docs/architecture.md](docs/architecture.md).
 
