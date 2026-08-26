@@ -2,7 +2,7 @@ from statistics import mean, pstdev
 
 from sqlalchemy.orm import Session
 
-from app.repositories.price_repository import get_market_prices
+from app.services.price_data import PriceSeries, load_price_series
 
 
 BASE_CURVE = [
@@ -27,19 +27,16 @@ SCENARIO_FORWARD_SHIFT = {
 def build_derivatives_curve(db: Session, *, country: str, zone: str, scenario: str = "base") -> dict:
     scenario = scenario if scenario in SCENARIO_FORWARD_SHIFT else "base"
     scenario_shift = SCENARIO_FORWARD_SHIFT[scenario]
-    prices = list(
-        reversed(
-            get_market_prices(
-                db,
-                country_code=country,
-                zone=zone,
-                market="day_ahead",
-                limit=168,
-            )
-        )
+    series = load_price_series(
+        db,
+        country=country,
+        zone=zone,
+        hours=168,
+        allow_sample_fallback=True,
     )
-    if len(prices) >= 24:
-        values = [point.price for point in prices]
+
+    if len(series.points) >= 24:
+        values = series.prices
         recent = values[-24:]
         previous = values[-48:-24] if len(values) >= 48 else values[:-24] or recent
         recent_avg = mean(recent)
@@ -64,7 +61,7 @@ def build_derivatives_curve(db: Session, *, country: str, zone: str, scenario: s
             "zone": zone,
             "currency": "EUR",
             "unit": "MWh",
-            "data_source": "ingested_market_prices",
+            "data_source": _derivatives_source(series),
             "scenario": scenario,
             "contracts": contracts,
         }
@@ -92,3 +89,9 @@ def build_derivatives_curve(db: Session, *, country: str, zone: str, scenario: s
         "scenario": scenario,
         "contracts": fallback,
     }
+
+
+def _derivatives_source(series: PriceSeries) -> str:
+    if series.source == "database":
+        return "ingested_market_prices"
+    return series.source

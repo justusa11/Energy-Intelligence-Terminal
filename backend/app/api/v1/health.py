@@ -105,7 +105,7 @@ def ingestion_status(
             "weather_ingestion": _job_status(
                 db,
                 dataset="weather_forecasts",
-                repair_command="python pipelines/jobs/ingest_weather.py",
+                repair_command="docker compose exec backend python pipelines/jobs/ingest_weather.py",
             ),
             "plant_registry": _job_status(
                 db,
@@ -116,6 +116,11 @@ def ingestion_status(
                 db,
                 dataset="external_market_prices",
                 repair_command="python pipelines/jobs/ingest_external_market_prices.py --country DE",
+            ),
+            "system_heartbeat": _job_status(
+                db,
+                dataset="system_heartbeat",
+                repair_command="docker compose exec backend python pipelines/jobs/write_system_heartbeat.py",
             ),
         },
     }

@@ -1,4 +1,5 @@
 import "../styles/globals.css";
+import "maplibre-gl/dist/maplibre-gl.css";
 
 export const metadata = {
   title: "ETrade AI",

@@ -16,7 +16,7 @@ from app.repositories.data_quality_repository import (
 from app.schemas.data_quality import DataQualityCheck, DataQualityResponse
 
 PRICE_REPAIR_COMMAND = "python pipelines/jobs/ingest_market_prices.py"
-WEATHER_REPAIR_COMMAND = "python pipelines/jobs/ingest_weather.py"
+WEATHER_REPAIR_COMMAND = "docker compose exec backend python pipelines/jobs/ingest_weather.py"
 
 
 def get_data_quality_status(
@@ -173,9 +173,9 @@ def _check_price_freshness(db: Session, *, country: str, zone: str) -> DataQuali
             message="No price timestamp found.",
         )
 
-    # Day-ahead prices are not continuously updated like live telemetry.
-    # For MVP, allow 72 hours before warning.
-    if age_hours <= 72:
+    # Day-ahead prices are not continuous telemetry, but a production terminal
+    # should warn once the current day-ahead curve is missing.
+    if age_hours <= 36:
         return _price_check(
             name="Price freshness",
             status="OK",

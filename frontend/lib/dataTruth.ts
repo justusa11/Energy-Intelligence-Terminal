@@ -43,19 +43,19 @@ export function getSourceTruth(source: string | null | undefined): DataTruth {
   }
 
   const normalized = source.toLowerCase();
+  if (normalized.includes("stale")) {
+    return {
+      state: "stale",
+      label: "Live source stale",
+      detail: "The live source is older than expected, so the view is using a current fallback curve.",
+    };
+  }
+
   if (normalized.includes("sample") || normalized.includes("fallback") || normalized.includes("mock")) {
     return {
       state: "sample",
       label: "Sample data",
       detail: "This view is using deterministic or fallback data.",
-    };
-  }
-
-  if (normalized.includes("stale")) {
-    return {
-      state: "stale",
-      label: "Stale data",
-      detail: "The last live update is older than expected.",
     };
   }
 

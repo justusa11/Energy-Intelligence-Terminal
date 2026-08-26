@@ -1,0 +1,20 @@
+# Development override with live-mounted source and hot reload.
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+services:
+  backend:
+    volumes:
+      - ./backend:/app
+      - ./pipelines:/app/pipelines
+    command: >
+      sh -c "python -m scripts.bootstrap_schema &&
+             (python pipelines/jobs/ingest_market_prices.py || true) &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+
+  frontend:
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    command: npm run dev

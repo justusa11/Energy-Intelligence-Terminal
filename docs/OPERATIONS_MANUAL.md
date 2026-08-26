@@ -14,6 +14,9 @@ and in the cloud.
 - [Recovery procedures](#recovery-procedures)
 - [Health checks & smoke test](#health-checks--smoke-test)
 
+For the recurring `Live source stale` / stale price and weather issue, use the
+focused runbook: [Stale Live Source Runbook](STALE_LIVE_SOURCE_RUNBOOK.md).
+
 ---
 
 ## Daily operations

@@ -36,27 +36,118 @@ test("infrastructure map controls are clickable", async ({ page }) => {
   await page.goto("/dashboard/infrastructure-map");
 
   await expect(page.getByRole("heading", { name: "Global Grid Cockpit" })).toBeVisible();
-  await page.getByRole("button", { name: "Jump map to Europe" }).click();
+  const map = page.getByLabel("Global vector basemap with animated energy infrastructure assets");
+  await page.getByRole("button", { name: "Jump map to All Europe" }).click();
+  await expect(page.getByText("All Europe grid view")).toBeVisible();
+  await page.waitForFunction(() => {
+    const el = document.querySelector(
+      '[aria-label="Global vector basemap with animated energy infrastructure assets"]'
+    );
+    const canvas = el?.querySelector("canvas");
+    if (!el || !canvas) return false;
+    const mapRect = el.getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
+    return (
+      canvasRect.width >= mapRect.width - 1 &&
+      canvasRect.height >= mapRect.height - 1
+    );
+  });
+  await expect(map.locator("canvas")).toBeVisible();
+  await expect(map.getByTestId("grid-flow-overlay").locator("line")).toHaveCount(0);
+  const germanyLabel = map.locator("div").filter({ hasText: /^Germany$/ }).first();
+  await expect(germanyLabel).toBeVisible();
+  const labelBox = await germanyLabel.boundingBox();
+  if (!labelBox) throw new Error("Germany label was not available");
+  await page.mouse.move(labelBox.x + labelBox.width / 2, labelBox.y + labelBox.height / 2);
+  await expect(map.getByText(/Country:/)).toBeVisible();
+  await page.getByRole("button", { name: "Jump map to Nordics" }).click();
+  await expect(page.getByText("Nordic power system")).toBeVisible();
+  await expect(page.getByText(/zoom 5/)).toBeVisible();
+  await page.getByRole("button", { name: "Jump map to Baltics" }).click();
+  await expect(page.getByText("Baltic power system")).toBeVisible();
+  await expect(page.getByText(/zoom 5/)).toBeVisible();
+  await expect(map.getByRole("button", { name: "Select German Solar Park" })).not.toBeVisible();
   await page.getByRole("button", { name: "Jump map to Global" }).click();
   await page.getByRole("button", { name: "Use Dark basemap" }).click();
   await page.getByRole("button", { name: "Show Flows grid layer" }).click();
+  await page.getByRole("button", { name: "Hide map labels" }).click();
+  await page.getByRole("button", { name: "Show map labels" }).click();
   await page.getByRole("button", { name: "Use 1DA timeline" }).click();
   await page.getByRole("button", { name: "Power plant" }).click();
   await page.getByRole("button", { name: "All", exact: true }).click();
 
-  await expect(page.getByText("Grid Inspector")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Grid Inspector" })).toBeAttached();
+});
+
+test("infrastructure map supports zoom controls", async ({ page }) => {
+  await page.goto("/dashboard/infrastructure-map");
+
+  await expect(page.getByText(/zoom 2/)).toBeVisible();
+  await page.getByRole("button", { name: "Zoom in" }).click();
+  await expect(page.getByText(/zoom 3/)).toBeVisible();
+  await page.getByRole("button", { name: "Zoom out" }).click();
+  await expect(page.getByText(/zoom 2/)).toBeVisible();
 });
 
 test("infrastructure map supports mouse wheel zoom", async ({ page }) => {
   await page.goto("/dashboard/infrastructure-map");
 
   const map = page.getByLabel("Global vector basemap with animated energy infrastructure assets");
-  await expect(page.getByText(/zoom 6/)).toBeVisible();
+  await expect(page.getByText(/zoom 2/)).toBeVisible();
+
+  // Wait for the WebGL canvas to actually fill the map viewport before
+  // interacting — MapLibre resizes it asynchronously after its container
+  // reaches its final layout size, and wheel events that land before that
+  // are silently dropped.
+  await page.waitForFunction(() => {
+    const el = document.querySelector(
+      '[aria-label="Global vector basemap with animated energy infrastructure assets"]'
+    );
+    const canvas = el?.querySelector("canvas");
+    if (!el || !canvas) return false;
+    return canvas.getBoundingClientRect().height >= el.getBoundingClientRect().height - 1;
+  });
+
   await map.hover();
-  await page.mouse.wheel(0, -500);
-  await expect(page.getByText(/zoom 7/)).toBeVisible();
-  await page.mouse.wheel(0, 500);
-  await expect(page.getByText(/zoom 6/)).toBeVisible();
+
+  // MapLibre's scroll-zoom handler classifies wheel input by watching a
+  // short burst of events, so a single large tick can be dropped; send a
+  // short run of ticks the way a real mouse wheel would.
+  for (let i = 0; i < 12; i++) {
+    await page.mouse.wheel(0, -100);
+    await page.waitForTimeout(30);
+  }
+  await expect(page.getByText(/zoom 2/)).not.toBeVisible();
+
+  for (let i = 0; i < 12; i++) {
+    await page.mouse.wheel(0, 100);
+    await page.waitForTimeout(30);
+  }
+  await expect(page.getByText(/zoom 2/)).toBeVisible();
+});
+
+test("infrastructure map does not draw wrapped country hover artifacts", async ({ page }) => {
+  await page.goto("/dashboard/infrastructure-map");
+
+  const map = page.getByLabel("Global vector basemap with animated energy infrastructure assets");
+  await expect(page.getByText(/zoom 2/)).toBeVisible();
+  await map.scrollIntoViewIfNeeded();
+  await page.waitForFunction(() => {
+    const el = document.querySelector(
+      '[aria-label="Global vector basemap with animated energy infrastructure assets"]'
+    );
+    const canvas = el?.querySelector("canvas");
+    if (!el || !canvas) return false;
+    const mapRect = el.getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
+    return (
+      canvasRect.width >= mapRect.width - 1 &&
+      canvasRect.height >= mapRect.height - 1
+    );
+  });
+  await expect(map.locator("canvas")).toBeVisible();
+  await expect(map.getByTestId("grid-flow-overlay").locator("line")).toHaveCount(0);
+  await expect(map.locator("svg.z-10 path")).toHaveCount(0);
 });
 
 test("infrastructure map exposes operator-grade fleet controls", async ({ page }) => {
@@ -74,7 +165,14 @@ test("infrastructure map exposes operator-grade fleet controls", async ({ page }
   await expect(page.getByText("2,000 MW nuclear")).toBeVisible();
 
   await page.getByLabel("Country filter").selectOption("DK");
-  await expect(page.getByRole("button", { name: "Select plant Horns Rev 3" })).toBeVisible();
+  await page.getByRole("button", { name: "Select plant Horns Rev 3" }).click();
+  await expect(page.getByText("What is this?")).toBeVisible();
+  await expect(page.getByText("What is happening?")).toBeVisible();
+  await expect(page.getByText("Mock low-wind renewable stress is the strongest current signal for DK1.")).toBeVisible();
+  await expect(page.getByText("Why should the operator care?")).toBeVisible();
+  await expect(page.getByText("Operator actions")).toBeVisible();
+  await expect(page.getByText("Related corridors", { exact: true })).toBeVisible();
+  await expect(page.getByText("FR-DK test path")).toBeVisible();
   await expect(page.getByText("France Nuclear Plant")).not.toBeVisible();
 });
 
@@ -284,7 +382,84 @@ async function mockApi(page: Page) {
     });
   });
 
-  await page.route(/.*gis\/assets.*/, async (route) => {
+  await page.route(/.*gis\/assets\/[^/]+\/context.*/, async (route) => {
+    const assetId = new URL(route.request().url()).pathname.split("/").at(-2) ?? "dk-wind";
+    await route.fulfill({
+      json: {
+        asset: {
+          id: assetId,
+          name: assetId === "dk-wind" ? "Horns Rev 3" : "Selected grid asset",
+          type: "power_plant",
+          lon: 7.85,
+          lat: 55.7,
+          detail: "wind offshore wind, 407 MW",
+          country: "DK",
+          zone: "DK1",
+          capacity_mw: 407,
+          fuel_type: "wind",
+          technology: "offshore wind",
+          operator: "Vattenfall",
+          status: "operational",
+          source: "mock",
+        },
+        headline: "Horns Rev 3 contributes 407 MW of mapped wind capacity.",
+        what_is_happening:
+          "Mock low-wind renewable stress is the strongest current signal for DK1. Wind forecast confidence is below the operator threshold.",
+        why_it_matters:
+          "Wind output changes the residual load shape and can create storage or export opportunities.",
+        operator_actions: [
+          "Review storage schedules around renewable output uncertainty.",
+          "Review related corridors for congestion, capacity, and cross-border price-spread exposure.",
+        ],
+        risk: {
+          level: "watch",
+          driver: "weather",
+          confidence: 0.82,
+        },
+        market_context: {
+          context_level: "watch",
+          dominant_driver: "weather",
+          drivers: [
+            {
+              category: "weather",
+              label: "Mock low-wind renewable stress",
+              score: 0.78,
+              level: "watch",
+              explanation: "Wind forecast confidence is below the operator threshold.",
+              evidence: ["Mock wind forecast"],
+            },
+          ],
+          scenario_tags: ["low_wind", "storage_shift"],
+          data_sources: {
+            prices: "mock",
+            weather: "mock",
+            events: "mock",
+            infrastructure: "mock",
+          },
+        },
+        related_links: [
+          {
+            id: "fr-dk",
+            name: "FR-DK test path",
+            from_asset_id: "fr-nuclear",
+            to_asset_id: "dk-wind",
+            capacity_mw: 800,
+            detail: "HVDC corridor",
+            source: "mock",
+          },
+        ],
+        data_sources: {
+          prices: "mock",
+          weather: "mock",
+          events: "mock",
+          infrastructure: "mock",
+          asset_registry: "mock",
+        },
+      },
+    });
+  });
+
+  await page.route(/.*gis\/assets(?:\?.*)?$/, async (route) => {
     const url = new URL(route.request().url());
     const isGlobal = url.searchParams.get("region") === "global";
     await route.fulfill({

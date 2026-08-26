@@ -1,16 +1,16 @@
-name: Ingest Market Prices
+name: Practice Supabase Heartbeat
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "20 8 * * *"
+    - cron: "17 8 * * *"
 
 jobs:
-  ingest:
+  heartbeat:
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      ENERGI_DATA_SERVICE_BASE_URL: https://api.energidataservice.dk
+      HEARTBEAT_SOURCE: github_actions_practice
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -22,4 +22,5 @@ jobs:
       - run: pip install -r backend/requirements.txt
       - name: Require database secret
         run: test -n "$DATABASE_URL"
-      - run: python pipelines/jobs/ingest_market_prices.py
+      - name: Write practice heartbeat
+        run: python pipelines/jobs/write_system_heartbeat.py

@@ -116,12 +116,34 @@ def get_infrastructure_assets(
     )
 
 
+def get_infrastructure_asset_by_id(db: Session, asset_id: str) -> InfrastructureAsset | None:
+    seed_european_infrastructure(db)
+    return (
+        db.query(InfrastructureAsset)
+        .filter(InfrastructureAsset.asset_id == asset_id)
+        .one_or_none()
+    )
+
+
 def get_infrastructure_links(db: Session, *, region: str = "europe") -> list[InfrastructureLink]:
     seed_european_infrastructure(db)
     query = db.query(InfrastructureLink)
     if region != "global":
         query = query.filter(InfrastructureLink.region == region)
     return query.order_by(InfrastructureLink.name.asc()).all()
+
+
+def get_infrastructure_links_for_asset(db: Session, asset_id: str) -> list[InfrastructureLink]:
+    seed_european_infrastructure(db)
+    return (
+        db.query(InfrastructureLink)
+        .filter(
+            (InfrastructureLink.from_asset_id == asset_id)
+            | (InfrastructureLink.to_asset_id == asset_id)
+        )
+        .order_by(InfrastructureLink.capacity_mw.desc().nullslast(), InfrastructureLink.name.asc())
+        .all()
+    )
 
 
 def summarize_capacity_by_fuel(assets: Iterable[InfrastructureAsset]) -> dict[str, float]:

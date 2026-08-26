@@ -4,10 +4,11 @@ import { useMemo, useState } from "react";
 import { DataTruthBadge } from "@/components/DataTruthBadge";
 import { EnergyInfrastructureMap } from "@/components/maps/EnergyInfrastructureMap";
 import { GridTelemetryStrip } from "@/components/GridTelemetryStrip";
+import { useApi } from "@/hooks/useApi";
 import { useGisAssets } from "@/hooks/useGisAssets";
 import { useMarketScope } from "@/hooks/useMarketScope";
 import { getRequestTruth } from "@/lib/dataTruth";
-import { assetStyles, sampleAssets, sampleLinks, type AssetType } from "@/lib/sampleGis";
+import { assetStyles, sampleAssets, sampleLinks, type AssetType, type GisAsset, type GisLink } from "@/lib/sampleGis";
 import {
   corridorGridStates,
   getZoneGridState,
@@ -24,14 +25,18 @@ const COUNTRY_NAMES: Record<string, string> = {
   CZ: "Czechia",
   DE: "Germany",
   DK: "Denmark",
+  EE: "Estonia",
   ES: "Spain",
   FI: "Finland",
   FR: "France",
   GB: "Great Britain",
   GR: "Greece",
   HU: "Hungary",
+  IE: "Ireland",
   IT: "Italy",
   JP: "Japan",
+  LT: "Lithuania",
+  LV: "Latvia",
   NL: "Netherlands",
   NO: "Norway",
   PL: "Poland",
@@ -40,6 +45,85 @@ const COUNTRY_NAMES: Record<string, string> = {
   SE: "Sweden",
   SK: "Slovakia",
   US: "United States",
+};
+const REGION_COUNTRIES: Record<string, string[]> = {
+  europe: [
+    "AT",
+    "BE",
+    "BG",
+    "CH",
+    "CZ",
+    "DE",
+    "DK",
+    "ES",
+    "FI",
+    "FR",
+    "GB",
+    "GR",
+    "HU",
+    "IT",
+    "NL",
+    "NO",
+    "PL",
+    "PT",
+    "RO",
+    "SE",
+    "SK",
+  ],
+  nordics: ["DK", "FI", "NO", "SE"],
+  baltics: ["EE", "LV", "LT"],
+  continental: ["AT", "BE", "CH", "CZ", "DE", "FR", "NL", "PL", "SK"],
+  iberia: ["ES", "PT"],
+  "uk-ireland": ["GB", "IE"],
+  italy: ["IT"],
+  balkans: ["BG", "GR", "HU", "RO"],
+  ercot: ["US"],
+  tokyo: ["JP"],
+};
+
+const REGION_LABELS: Record<string, string> = {
+  global: "Global operator overview",
+  europe: "All Europe grid view",
+  nordics: "Nordic power system",
+  baltics: "Baltic power system",
+  continental: "Continental Europe grid view",
+  iberia: "Iberian power system",
+  "uk-ireland": "UK/Ireland power system",
+  italy: "Italy power system",
+  balkans: "Balkan power system",
+  ercot: "ERCOT regional view",
+  tokyo: "Japan regional view",
+};
+
+type MarketContextDriver = {
+  category: string;
+  label: string;
+  score: number;
+  level: string;
+  explanation: string;
+  evidence: string[];
+};
+
+type GisAssetContext = {
+  asset: GisAsset;
+  headline: string;
+  what_is_happening: string;
+  why_it_matters: string;
+  operator_actions: string[];
+  risk: {
+    level: string;
+    driver: string;
+    confidence: number;
+  };
+  market_context: {
+    context_level: string;
+    dominant_driver: string;
+    drivers: MarketContextDriver[];
+    scenario_tags: string[];
+    data_sources: Record<string, string>;
+  };
+  related_links: GisLink[];
+  data_sources: Record<string, string>;
 };
 
 function formatNumber(value: number) {
@@ -56,6 +140,7 @@ export default function InfrastructureMapPage() {
   const [filter, setFilter] = useState<AssetType | "all">("all");
   const [fuelFilter, setFuelFilter] = useState("all");
   const [countryFilter, setCountryFilter] = useState("all");
+  const [mapRegion, setMapRegion] = useState("global");
   const { data: gisData, error: gisError, isLoading: gisLoading } = useGisAssets(filter);
   const rawAssets = gisData?.assets.length ? gisData.assets : sampleAssets;
   const assets = useMemo(
@@ -71,17 +156,35 @@ export default function InfrastructureMapPage() {
   const countries = useMemo(() => getCountries(rawAssets), [rawAssets]);
   const fuelMix = useMemo(() => getFuelMix(assets), [assets]);
   const fuelOptions = useMemo(() => getFuelOptions(rawAssets), [rawAssets]);
+  const focusedAssets = useMemo(
+    () => filterAssetsByMapRegion(assets, mapRegion),
+    [assets, mapRegion]
+  );
   const largestVisible = useMemo(
     () =>
-      [...assets]
+      [...focusedAssets]
         .filter((asset) => asset.type === "power_plant")
         .sort((a, b) => (b.capacity_mw ?? 0) - (a.capacity_mw ?? 0))
         .slice(0, 6),
-    [assets]
+    [focusedAssets]
   );
+  const mapFocus = useMemo(() => getMapFocusSummary(focusedAssets, mapRegion), [focusedAssets, mapRegion]);
 
   const selected = assets.find((a) => a.id === active);
+  const {
+    data: selectedContext,
+    error: selectedContextError,
+    isLoading: selectedContextLoading,
+  } = useApi<GisAssetContext>(
+    selected ? `/gis/assets/${encodeURIComponent(selected.id)}/context` : null
+  );
+  const activeContext = selectedContext?.asset.id === selected?.id ? selectedContext : null;
   const selectedGridState = selected ? getZoneGridState(selected.id) : undefined;
+  const selectedContextTruth = getRequestTruth({
+    error: selectedContextError,
+    isLoading: selectedContextLoading,
+    source: activeContext?.data_sources.asset_registry,
+  });
   const system = getSystemSummary(assets);
   const gisTruth = getRequestTruth({
     error: gisError,
@@ -219,6 +322,7 @@ export default function InfrastructureMapPage() {
             assets={assets}
             filter={filter}
             links={links}
+            onRegionChange={setMapRegion}
             onSelect={(asset) => setActive(asset.id)}
           />
         </div>
@@ -226,15 +330,25 @@ export default function InfrastructureMapPage() {
         <aside className="rounded-xl border border-slate-800 bg-slate-900 p-5">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Grid Inspector</h2>
-            {selectedGridState && (
-              <span className={`rounded px-2 py-1 text-xs font-semibold ${riskClass(selectedGridState.congestionRisk)}`}>
-                {selectedGridState.congestionRisk.toUpperCase()}
+            {(activeContext?.risk.level || selectedGridState) && (
+              <span className={`rounded px-2 py-1 text-xs font-semibold ${riskClass(activeContext?.risk.level ?? selectedGridState?.congestionRisk ?? "low")}`}>
+                {(activeContext?.risk.level ?? selectedGridState?.congestionRisk ?? "low").toUpperCase()}
               </span>
             )}
           </div>
+          <div className="mt-4 rounded-lg border border-slate-800 bg-slate-950 p-4">
+            <p className="text-xs uppercase tracking-wide text-slate-500">Map focus</p>
+            <p className="mt-2 text-sm font-semibold text-slate-100">{mapFocus.label}</p>
+            <p className="mt-1 text-xs text-slate-500">
+              {mapFocus.assets} assets · {formatMw(mapFocus.capacityMw)} mapped capacity
+            </p>
+          </div>
           {selected ? (
             <div className="mt-4 space-y-4">
-              <p className="text-lg font-medium text-white">{selected.name}</p>
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-lg font-medium text-white">{selected.name}</p>
+                <DataTruthBadge truth={selectedContextTruth} />
+              </div>
               <span
                 className="inline-block rounded px-2 py-1 text-xs"
                 style={{
@@ -248,12 +362,78 @@ export default function InfrastructureMapPage() {
               <p className="text-xs text-slate-500">
                 {selected.lat.toFixed(2)}°N, {selected.lon.toFixed(2)}°E
               </p>
+
+              <div className="rounded-lg border border-slate-800 bg-slate-950 p-4">
+                <p className="text-xs uppercase tracking-wide text-slate-500">What is this?</p>
+                <p className="mt-2 text-sm font-semibold text-slate-100">
+                  {activeContext?.headline ?? fallbackAssetHeadline(selected)}
+                </p>
+                <p className="mt-2 text-sm text-slate-400">{selected.detail}</p>
+              </div>
+
+              <div className="rounded-lg border border-slate-800 bg-slate-950 p-4">
+                <p className="text-xs uppercase tracking-wide text-slate-500">What is happening?</p>
+                <p className="mt-2 text-sm text-slate-300">
+                  {selectedContextLoading
+                    ? "Loading backend market context..."
+                    : activeContext?.what_is_happening ?? fallbackWhatIsHappening(selected)}
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-slate-800 bg-slate-950 p-4">
+                <p className="text-xs uppercase tracking-wide text-slate-500">Why should the operator care?</p>
+                <p className="mt-2 text-sm text-slate-300">
+                  {activeContext?.why_it_matters ?? fallbackWhyItMatters(selected)}
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <InspectorMetric label="Country" value={selected.country ?? selected.zone ?? "n/a"} />
                 <InspectorMetric label="Capacity" value={selected.capacity_mw ? formatMw(selected.capacity_mw) : "n/a"} />
                 <InspectorMetric label="Fuel" value={selected.fuel_type ?? "n/a"} />
                 <InspectorMetric label="Operator" value={selected.operator ?? "n/a"} />
               </div>
+              {activeContext && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <InspectorMetric label="Dominant driver" value={driverLabel(activeContext.risk.driver)} />
+                    <InspectorMetric label="Confidence" value={`${Math.round(activeContext.risk.confidence * 100)}%`} />
+                  </div>
+                  <div className="rounded-lg border border-slate-800 bg-slate-950 p-4">
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Operator actions</p>
+                    <div className="mt-3 space-y-2">
+                      {activeContext.operator_actions.map((action) => (
+                        <p key={action} className="rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-300">
+                          {action}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-slate-800 bg-slate-950 p-4">
+                    <p className="text-xs uppercase tracking-wide text-slate-500">Related corridors</p>
+                    <div className="mt-3 space-y-2">
+                      {activeContext.related_links.length ? (
+                        activeContext.related_links.map((link) => (
+                          <div key={link.id} className="rounded-md border border-slate-800 bg-slate-900 px-3 py-2 text-sm">
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="font-medium text-slate-200">{link.name}</span>
+                              <span className="text-slate-500">{link.capacity_mw ? formatMw(link.capacity_mw) : "n/a"}</span>
+                            </div>
+                            <p className="mt-1 text-xs text-slate-500">{link.detail ?? "No corridor detail."}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-slate-500">No directly linked corridors are mapped for this asset.</p>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+              {selectedContextError && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+                  Backend context unavailable: {selectedContextError}
+                </div>
+              )}
               {selectedGridState && (
                 <>
                   <div className="grid grid-cols-2 gap-3">
@@ -311,7 +491,7 @@ export default function InfrastructureMapPage() {
           )}
 
           <div className="mt-6 border-t border-slate-800 pt-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Largest plants visible</p>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Largest plants in focus</p>
             <div className="mt-3 space-y-2">
               {largestVisible.map((asset) => (
                 <button
@@ -438,8 +618,8 @@ function InspectorMetric({ label, value }: { label: string; value: string }) {
 }
 
 function riskClass(risk: string) {
-  if (risk === "high") return "bg-red-500/10 text-red-400";
-  if (risk === "medium") return "bg-amber-500/10 text-amber-400";
+  if (risk === "high" || risk === "severe") return "bg-red-500/10 text-red-400";
+  if (risk === "medium" || risk === "elevated" || risk === "watch") return "bg-amber-500/10 text-amber-400";
   return "bg-green-500/10 text-green-400";
 }
 
@@ -467,6 +647,34 @@ function getFuelMix(assets: typeof sampleAssets) {
   return Array.from(totals.values()).sort((a, b) => b.capacityMw - a.capacityMw);
 }
 
+function filterAssetsByMapRegion(assets: typeof sampleAssets, region: string) {
+  const countries = REGION_COUNTRIES[region];
+  if (!countries) return assets;
+  return assets.filter((asset) => countries.includes(asset.country ?? "") || fallbackRegionMatch(asset, region));
+}
+
+function getMapFocusSummary(assets: typeof sampleAssets, region: string) {
+  return {
+    label: REGION_LABELS[region] ?? "Regional grid view",
+    assets: assets.length,
+    capacityMw: Math.round(
+      assets.reduce((sum, asset) => sum + (asset.capacity_mw ?? 0), 0)
+    ),
+  };
+}
+
+function fallbackRegionMatch(asset: (typeof sampleAssets)[number], region: string) {
+  if (region === "europe") return asset.lon > -15 && asset.lon < 45 && asset.lat > 35 && asset.lat < 72;
+  if (region === "nordics") return asset.lon > 4 && asset.lon < 32 && asset.lat > 55 && asset.lat < 72;
+  if (region === "baltics") return asset.lon > 19 && asset.lon < 30 && asset.lat > 53 && asset.lat < 60;
+  if (region === "continental") return asset.lon > -6 && asset.lon < 25 && asset.lat > 43 && asset.lat < 56;
+  if (region === "iberia") return asset.lon > -11 && asset.lon < 5 && asset.lat > 35 && asset.lat < 45;
+  if (region === "uk-ireland") return asset.lon > -12 && asset.lon < 3 && asset.lat > 49 && asset.lat < 60;
+  if (region === "italy") return asset.lon > 6 && asset.lon < 18 && asset.lat > 36 && asset.lat < 47;
+  if (region === "balkans") return asset.lon > 13 && asset.lon < 30 && asset.lat > 36 && asset.lat < 47;
+  return false;
+}
+
 function fuelLabel(fuel: string) {
   return fuel.charAt(0).toUpperCase() + fuel.slice(1);
 }
@@ -489,6 +697,27 @@ function signalCopy(score: number, risk: string) {
   if (score >= 85) return "High spread value: prioritize storage and congestion-aware dispatch.";
   if (risk === "high") return "Congestion is elevated: validate interconnector exposure before dispatch.";
   return "Moderate opportunity: keep flexible assets available for next price window.";
+}
+
+function fallbackAssetHeadline(asset: GisAsset) {
+  if (asset.type === "market_zone") return `${asset.name} is the selected market zone.`;
+  if (asset.capacity_mw) return `${asset.name} contributes ${formatMw(asset.capacity_mw)} of mapped capacity.`;
+  return `${asset.name} is mapped infrastructure.`;
+}
+
+function fallbackWhatIsHappening(asset: GisAsset) {
+  return `${asset.zone ?? asset.country ?? "This area"} is using local grid-state context until the backend asset context responds.`;
+}
+
+function fallbackWhyItMatters(asset: GisAsset) {
+  if (asset.fuel_type === "wind") return "Wind output changes residual load and can create export or storage opportunities.";
+  if (asset.fuel_type === "gas") return "Gas-fired assets can shape marginal prices during low-renewable or high-demand periods.";
+  if (asset.fuel_type === "nuclear") return "Large nuclear assets matter because outages remove substantial baseload capacity.";
+  return "This asset can affect local price, reliability, congestion, or dispatch decisions.";
+}
+
+function driverLabel(value: string) {
+  return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function FilterButton({

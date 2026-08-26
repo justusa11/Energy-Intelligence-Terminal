@@ -3,7 +3,7 @@ name: Ingest Weather Forecasts
 on:
   workflow_dispatch:
   schedule:
-    - cron: "45 */6 * * *"
+    - cron: "45 8 * * *"
 
 jobs:
   ingest:

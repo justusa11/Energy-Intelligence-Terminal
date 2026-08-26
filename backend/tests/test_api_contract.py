@@ -106,6 +106,7 @@ def test_ingestion_status_endpoint_reports_providers_and_jobs():
         "weather_ingestion",
         "plant_registry",
         "external_market_ingestion",
+        "system_heartbeat",
     } <= set(payload["jobs"])
     assert all("repair_command" in job for job in payload["jobs"].values())
 
@@ -175,6 +176,33 @@ def test_day_ahead_prices_returns_database_rows():
     assert read_payload["prices"][0]["hour"] == "00:00"
     assert read_payload["prices"][0]["timestamp_utc"] == "2026-06-04T00:00:00+00:00"
     assert read_payload["prices"][-1]["hour"] == "23:00"
+
+
+def test_day_ahead_prices_falls_back_when_live_zone_database_rows_are_stale():
+    db = SessionLocal()
+    try:
+        base_time = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0) - timedelta(days=10)
+        for hour in range(24):
+            create_market_price(
+                db,
+                country_code="DK",
+                market="day_ahead",
+                zone="DK1",
+                source="stale-test",
+                timestamp_utc=base_time + timedelta(hours=hour),
+                price=float(hour),
+                currency="EUR",
+                unit="MWh",
+            )
+    finally:
+        db.close()
+
+    response = client.get("/api/v1/prices/day-ahead?country=DK&zone=DK1")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["data_source"] == "stale_database_sample_fallback"
+    assert len(payload["prices"]) == 24
 
 
 def test_day_ahead_prices_aggregates_quarter_hour_rows_to_hourly_buckets():
@@ -383,6 +411,31 @@ def test_derivatives_curve_uses_ingested_prices_when_available():
     assert payload["data_source"] == "ingested_market_prices"
     assert len(payload["contracts"]) >= 4
     assert payload["contracts"][0]["forward_eur_mwh"] > 0
+
+
+def test_derivatives_curve_marks_known_live_zone_stale_when_rows_are_old():
+    db = SessionLocal()
+    try:
+        base_time = datetime(2026, 7, 1, 0, 0, tzinfo=timezone.utc)
+        for hour in range(72):
+            create_market_price(
+                db,
+                country_code="DK",
+                market="day_ahead",
+                zone="DK1",
+                source="stale-derivatives-test",
+                timestamp_utc=base_time + timedelta(hours=hour),
+                price=60 + (hour % 24) * 0.75,
+            )
+    finally:
+        db.close()
+
+    response = client.get("/api/v1/derivatives/curve?country=DK&zone=DK1")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["data_source"] == "stale_database_sample_fallback"
+    assert len(payload["contracts"]) >= 4
 
 
 def test_derivatives_curve_accepts_market_scenario():
@@ -628,3 +681,18 @@ def test_infrastructure_summary_groups_european_capacity_by_fuel():
     assert payload["asset_count"] >= 25
     assert payload["capacity_by_fuel_mw"]["nuclear"] > 0
     assert payload["capacity_by_fuel_mw"]["wind"] > 0
+
+
+def test_gis_asset_context_answers_operator_questions():
+    response = client.get("/api/v1/gis/assets/dk1-zone/context")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["asset"]["id"] == "dk1-zone"
+    assert payload["asset"]["type"] == "market_zone"
+    assert payload["headline"]
+    assert payload["why_it_matters"]
+    assert payload["operator_actions"]
+    assert payload["market_context"]["zone"] == "DK1"
+    assert {"level", "driver", "confidence"} <= set(payload["risk"])
+    assert "prices" in payload["data_sources"]

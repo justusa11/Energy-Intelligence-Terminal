@@ -9,6 +9,9 @@ import { GridTelemetryStrip } from "@/components/GridTelemetryStrip";
 import { useIngestionStatus, type IngestionJobStatus } from "@/hooks/useIngestionStatus";
 import type { RiskStatus } from "@/types/risk";
 
+const REQUIRED_PRACTICE_JOBS = new Set(["price_ingestion", "weather_ingestion", "system_heartbeat"]);
+const OPTIONAL_ENRICHMENT_JOBS = new Set(["plant_registry", "external_market_ingestion"]);
+
 export default function RiskPage() {
   const { country, setZone, zone } = useMarketScope();
 
@@ -143,7 +146,12 @@ export default function RiskPage() {
             <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-400">Jobs</h3>
             <div className="mt-3 grid gap-3">
               {Object.entries(ingestion.data?.jobs ?? {}).map(([key, job]) => (
-                <JobCard key={key} name={formatJobName(key)} job={job} />
+                <JobCard
+                  key={key}
+                  name={formatJobName(key)}
+                  job={job}
+                  optional={OPTIONAL_ENRICHMENT_JOBS.has(key)}
+                />
               ))}
               {ingestion.isLoading && <SkeletonCard label="Loading jobs..." />}
             </div>
@@ -154,12 +162,19 @@ export default function RiskPage() {
   );
 }
 
-function JobCard({ job, name }: { job: IngestionJobStatus; name: string }) {
+function JobCard({ job, name, optional = false }: { job: IngestionJobStatus; name: string; optional?: boolean }) {
   return (
     <div className="rounded-lg border border-slate-800 bg-slate-950 p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-slate-100">{name}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold text-slate-100">{name}</p>
+            {optional && (
+              <span className="rounded bg-slate-800 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                Optional
+              </span>
+            )}
+          </div>
           <p className="mt-1 text-xs text-slate-500">{job.message ?? "No message reported."}</p>
         </div>
         <span className={`rounded px-2 py-1 text-[11px] font-semibold ${jobStatusClass(job.status)}`}>
@@ -246,7 +261,7 @@ function jobStatusClass(status: string) {
 
 function ingestionHealthClass(data: ReturnType<typeof useIngestionStatus>["data"]) {
   if (!data) return "bg-slate-700/40 text-slate-400";
-  const jobs = Object.values(data.jobs);
+  const jobs = requiredJobs(data.jobs);
   if (jobs.some((job) => job.status === "failed" || job.status === "error")) {
     return "bg-red-500/10 text-red-400";
   }
@@ -258,9 +273,16 @@ function ingestionHealthClass(data: ReturnType<typeof useIngestionStatus>["data"
 
 function ingestionSummary(data: ReturnType<typeof useIngestionStatus>["data"]) {
   if (!data) return "Unavailable";
-  const jobs = Object.values(data.jobs);
+  const jobs = requiredJobs(data.jobs);
   const success = jobs.filter((job) => job.status === "success").length;
-  return `${success}/${jobs.length} jobs healthy`;
+  return `${success}/${jobs.length} required jobs healthy`;
+}
+
+function requiredJobs(jobs: Record<string, IngestionJobStatus>) {
+  const required = Object.entries(jobs)
+    .filter(([key]) => REQUIRED_PRACTICE_JOBS.has(key))
+    .map(([, job]) => job);
+  return required.length > 0 ? required : Object.values(jobs);
 }
 
 function formatTimestamp(value: string) {

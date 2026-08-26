@@ -42,6 +42,7 @@ def load_price_series(
     zone: str = "DK1",
     hours: int = 24,
     allow_sample_fallback: bool = True,
+    max_staleness_hours: int = 36,
 ) -> PriceSeries:
     try:
         records = get_market_prices(
@@ -61,6 +62,19 @@ def load_price_series(
             for r in reversed(records)
         ]
         points = _aggregate_to_hourly(raw_points)[-hours:]
+        latest = points[-1].timestamp_utc if points else None
+        zone_cfg = get_zone(country, zone)
+        if latest and zone_cfg and allow_sample_fallback:
+            if latest.tzinfo is None:
+                latest = latest.replace(tzinfo=timezone.utc)
+            age = datetime.now(timezone.utc) - latest.astimezone(timezone.utc)
+            if age > timedelta(hours=max_staleness_hours):
+                return generate_sample_series(
+                    country=country,
+                    zone=zone,
+                    hours=hours,
+                    source="stale_database_sample_fallback",
+                )
         return PriceSeries(country=country, zone=zone, source="database", points=points)
 
     if not allow_sample_fallback:
@@ -92,6 +106,7 @@ def generate_sample_series(
     zone: str,
     hours: int = 24,
     end_time: datetime | None = None,
+    source: str = "sample",
 ) -> PriceSeries:
     """Deterministic synthetic day-ahead curve with morning/evening peaks.
 
@@ -104,7 +119,10 @@ def generate_sample_series(
 
     if end_time is None:
         now = datetime.now(timezone.utc)
-        end_time = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=24)
+        if hours <= 24:
+            end_time = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(hours=hours)
+        else:
+            end_time = now.replace(minute=0, second=0, microsecond=0) + timedelta(hours=24)
 
     start_time = end_time - timedelta(hours=hours)
     zone_seed = sum(ord(c) for c in f"{country}{zone}")
@@ -132,4 +150,4 @@ def generate_sample_series(
         price = base * (1.0 + volatility * (daily_shape + weekly + shape_noise + residual))
         points.append(PricePoint(timestamp_utc=ts, price=round(price, 2)))
 
-    return PriceSeries(country=country, zone=zone, source="sample", points=points)
+    return PriceSeries(country=country, zone=zone, source=source, points=points)

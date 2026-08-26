@@ -37,6 +37,7 @@ backend/test_contract.db
 .DS_Store
 Thumbs.db
 .vscode/
+.claude/
 
 # Environment files
 .env
@@ -48,3 +49,6 @@ Thumbs.db
 # Keep examples
 !.env.example
 !.env.local.example
+
+# Local agent planning artifacts
+docs/superpowers/plans/*.md

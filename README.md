@@ -1,16 +1,29 @@
 # AI Energy Intelligence Terminal
 
-A multi-country energy-market intelligence terminal: day-ahead price analytics,
-baseline price forecasting, market-regime classification, a market screener, a
-flexibility optimizer, a storage trading simulator, a data-driven AI advisor,
-automated reports, and an infrastructure map — all behind a Next.js dashboard
-served by a FastAPI backend.
+A multi-country energy-market intelligence terminal for understanding what is
+happening in power markets, why it is happening, what may happen next, and what
+an operator should care about. The app combines day-ahead prices, weather,
+market-regime detection, data-quality gates, infrastructure intelligence,
+forecasting, flexibility optimization, trading simulation, AI-style explanations,
+and reports behind a Next.js dashboard served by a FastAPI backend.
 
-> **Status:** Product MVP. Denmark (DK1/DK2) runs on **live** data from Energi
-> Data Service and Open-Meteo. Germany, US (ERCOT) and Japan (JEPX) run on
-> **sample** data until their adapters are connected. Every analytics module
-> works today thanks to a deterministic sample-data fallback, so the terminal
-> is fully demoable with an empty database.
+> **Status:** Product MVP / portfolio project. Denmark (DK1/DK2) runs on
+> live-capable data from Energi Data Service and Open-Meteo. Germany, ERCOT,
+> Japan, and broader Europe are represented through seeded/demo datasets until
+> their production-grade adapters are connected. Pages label stale or fallback
+> data clearly so demos do not pretend sample data is live market truth.
+
+## What this project demonstrates
+
+- Full-stack energy analytics with a typed frontend/backend contract.
+- Real ingestion jobs for Denmark prices and weather, with run logs and data
+  quality checks.
+- Decision workflows that turn price, weather, and risk signals into operator
+  recommendations.
+- A GIS-style infrastructure map where assets and zones answer: what is this,
+  what is happening here, and what should the operator care about?
+- Reliability practice: health checks, stale-source detection, repair commands,
+  Docker Compose, GitHub Actions examples, and Supabase practice activity notes.
 
 ---
 
@@ -166,9 +179,9 @@ energy-intelligence-terminal/
 | Risk Monitor | `/dashboard/risk` | `risk` |
 | AI Advisor | `/dashboard/advisor` | `advisor` |
 | Reports | `/dashboard/reports` | `reports` |
-| Infrastructure Map | `/dashboard/infrastructure-map` | sample GIS assets |
-| Gas & Carbon | `/dashboard/gas-carbon` | roadmap |
-| Derivatives | `/dashboard/derivatives` | roadmap |
+| Infrastructure Map | `/dashboard/infrastructure-map` | `gis`, `infrastructure_assets` |
+| Gas & Carbon | `/dashboard/gas-carbon` | gas/carbon economics |
+| Derivatives | `/dashboard/derivatives` | forward curve analytics |
 
 ---
 
@@ -226,6 +239,8 @@ Details: [docs/data_sources.md](docs/data_sources.md).
 | [ui_design.md](docs/ui_design.md) | Layout, theming, component conventions |
 | [roadmap.md](docs/roadmap.md) | 24-week plan and what's next |
 | [OPERATIONS_MANUAL.md](docs/OPERATIONS_MANUAL.md) | **Run/fix guide — start here when something breaks** |
+| [STALE_LIVE_SOURCE_RUNBOOK.md](docs/STALE_LIVE_SOURCE_RUNBOOK.md) | Why stale/live-source warnings happen and how to repair them |
+| [SUPABASE_PRACTICE_ACTIVITY_SETUP.md](docs/SUPABASE_PRACTICE_ACTIVITY_SETUP.md) | Practice-only heartbeat and scheduled ingestion setup |
 | [GO_TO_MARKET.md](docs/GO_TO_MARKET.md) | Positioning, ICP, pricing, launch plan |
 
 ---
